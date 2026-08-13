@@ -204,19 +204,40 @@
                            hide-add-button?))
       (block-route-root page-uuid page config hide-add-button?))))
 
+(defn- done-task?
+  [block]
+  (and (some #(= :logseq.class/Task (:db/ident %)) (:block/tags block))
+       (= :logseq.property/status.done
+          (:db/ident (:logseq.property/status block)))))
+
 (hsx/defc journal-page
   [journal-uuid option]
   (let [page (db-hooks/use-block-projection journal-uuid render-stable-page)
         child-uuids (db-hooks/use-children journal-uuid)
+        child-blocks (mapv db-hooks/use-block child-uuids)
         document-mode? (rfx/use-sub [:document/mode?])]
     (when page
       (let [container-id (or (:container-id option)
                              (state/get-container-id [:journal-page journal-uuid]))
             config (assoc (page-render-config page option document-mode?)
                           :container-id container-id)
+            done-uuid-set (into #{} (keep #(when (done-task? %) (:block/uuid %))) child-blocks)
+            active-child-uuids (filterv (complement done-uuid-set) child-uuids)
+            done-child-uuids (filterv done-uuid-set child-uuids)
             page-blocks-content
             [:div.page-blocks-inner.relative
-             (block/plain-block-list config child-uuids)
+             (block/plain-block-list config active-child-uuids)
+             (when (seq done-child-uuids)
+               [:div.journal-done-tasks.mt-3
+                (ui/foldable
+                 [:div.flex.items-center.gap-2.text-sm.font-medium.text-muted-foreground
+                  [:span (t :property.status/done)]
+                  [:span.text-xs (count done-child-uuids)]]
+                 (fn []
+                   [:div.mt-1
+                    (block/plain-block-list config done-child-uuids)])
+                 {:title-trigger? true
+                  :default-collapsed? true})])
              (when-not (:hide-add-button? option)
                (add-button page child-uuids config))]]
         (page-inner (assoc option

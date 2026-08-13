@@ -2590,8 +2590,30 @@
   [view-feature-type]
   (get default-view-title-key-by-feature-type view-feature-type))
 
+(defn- task-view?
+  [view-parent view-feature-type]
+  (and (= :class-objects view-feature-type)
+       (= :logseq.class/Task (:db/ident view-parent))))
+
+(defn- task-status-filter
+  [done? done-status-uuid]
+  {:or? false
+   :filters [[:logseq.property/status
+              (if done? :is :is-not)
+              #{done-status-uuid}]]})
+
+(defn- task-done-filter?
+  [filters done-status-uuid]
+  (some (fn [[property operator values]]
+          (and (= :logseq.property/status property)
+               (= :is operator)
+               (contains? (set values) done-status-uuid)))
+        (:filters filters)))
+
+(defonce ^:private *ensured-task-view-parents (atom #{}))
+
 (defn- create-view!
-  [view-parent view-feature-type {:keys [auto-triggered?]}]
+  [view-parent view-feature-type {:keys [auto-triggered? task-done-view?]}]
   (p/let [repo (state/get-current-repo)
           page (db-async/<get-block repo common-config/views-page-name {:children? false})]
     (when page
@@ -2599,15 +2621,27 @@
                                (state/<invoke-db-worker :thread-api/pull repo [:db/id] :logseq.property.view/type.list))
               block-page-property (when (contains? #{:linked-references :unlinked-references} view-feature-type)
                                     (state/<invoke-db-worker :thread-api/pull repo [:db/id] :block/page))
+              task-class-view? (task-view? view-parent view-feature-type)
+              done-status (when task-class-view?
+                            (state/<invoke-db-worker :thread-api/pull repo
+                                                    [:block/uuid]
+                                                    :logseq.property/status.done))
               properties (cond->
                           {:logseq.property/view-for (:db/id view-parent)
                            :logseq.property.view/feature-type view-feature-type}
                            (contains? #{:linked-references :unlinked-references} view-feature-type)
                            (assoc :logseq.property.view/type (:db/id list-view-type)
-                                  :logseq.property.view/group-by-property (:db/id block-page-property)))
-            view-title (if auto-triggered?
-                         (some-> (default-view-title-key view-feature-type) t)
-                         "")
+                                  :logseq.property.view/group-by-property (:db/id block-page-property))
+
+                           task-class-view?
+                           (assoc :logseq.property.table/filters
+                                  (task-status-filter (boolean task-done-view?)
+                                                      (:block/uuid done-status))))
+            view-title (cond
+                         task-done-view? (t :property.status/done)
+                         (and auto-triggered? task-class-view?) (t :nav/tasks)
+                         auto-triggered? (some-> (default-view-title-key view-feature-type) t)
+                         :else "")
             view-block-id (common-uuid/gen-uuid :view-block-uuid (str (:block/uuid view-parent) view-feature-type))
             result (editor-handler/api-insert-new-block! view-title
                                                          (cond->
@@ -2618,6 +2652,44 @@
                                                            auto-triggered?
                                                            (assoc :custom-uuid view-block-id)))]
         (db-async/<get-block repo (:block/uuid result) {:children? false})))))
+
+(defn- ensure-task-views!
+  [view-parent-uuid view-feature-type view-uuids]
+  (when (and (= :class-objects view-feature-type)
+             (seq view-uuids)
+             (not (contains? @*ensured-task-view-parents view-parent-uuid)))
+    (swap! *ensured-task-view-parents conj view-parent-uuid)
+    (-> (p/let [repo (state/get-current-repo)
+                view-parent (db-async/<get-block repo view-parent-uuid {:children? false})
+                views (db-async/<get-blocks repo view-uuids {:children? false})]
+          (when (task-view? view-parent view-feature-type)
+            (p/let [done-status (state/<invoke-db-worker :thread-api/pull repo
+                                                        [:block/uuid]
+                                                        :logseq.property/status.done)
+                    done-status-uuid (:block/uuid done-status)
+                    done-view (some #(when (task-done-filter?
+                                            (:logseq.property.table/filters %)
+                                            done-status-uuid)
+                                       %)
+                                    views)
+                    active-view (or (first (remove #{done-view} views))
+                                    (first views))
+                    _ (when active-view
+                        (p/do!
+                         (when (contains? #{"" (t :view/all)} (:block/title active-view))
+                           (editor-handler/save-block! repo active-view (t :nav/tasks)))
+                         (property-handler/set-block-property!
+                          (:db/id active-view)
+                          :logseq.property.table/filters
+                          (task-status-filter false done-status-uuid))))
+                    _ (when-not done-view
+                        (create-view! view-parent view-feature-type
+                                      {:auto-triggered? true
+                                       :task-done-view? true}))]
+              nil)))
+        (p/catch (fn [error]
+                   (swap! *ensured-task-view-parents disj view-parent-uuid)
+                   (js/console.error "Failed to configure task views" error))))))
 
 (def ^:private default-view-title-candidates
   (reduce-kv
@@ -2704,23 +2776,26 @@
 (hsx/defc views-tab
   [view-parent current-view-uuid
    {:keys [view-uuids set-current-view-uuid! view-feature-type opacity] :as opts}]
-  (into
-   [:div.views]
-   (concat
-    (map (fn [view-uuid]
-           ^{:key (str "view-tab-" view-uuid)}
-           (view-tab-button view-parent current-view-uuid view-uuid opts))
-         view-uuids)
-    [(shui/button
-      {:key "add-view"
-       :variant :text
-       :size :sm
-       :title (t :view/add-new-view)
-       :class (str "!px-1 -ml-1 text-muted-foreground hover:text-foreground transition-opacity ease-in duration-300 " opacity)
-       :on-click (fn []
-                   (p/let [view (create-view! view-parent view-feature-type {:auto-triggered? false})]
-                     (set-current-view-uuid! (:block/uuid view))))}
-      (ui/icon "plus" {:size 15}))])))
+  (let [task-class-view? (task-view? view-parent view-feature-type)]
+    (into
+     [:div.views]
+     (concat
+      (map (fn [view-uuid]
+             ^{:key (str "view-tab-" view-uuid)}
+             (view-tab-button view-parent current-view-uuid view-uuid opts))
+           view-uuids)
+      [(shui/button
+        {:key "add-view"
+         :variant :text
+         :size :sm
+         :title (t :view/add-new-view)
+         :class (str "!px-1 -ml-1 text-muted-foreground hover:text-foreground transition-opacity ease-in duration-300 " opacity)
+         :on-click (fn []
+                     (p/let [view (create-view! view-parent view-feature-type
+                                               {:auto-triggered? false
+                                                :task-done-view? task-class-view?})]
+                       (set-current-view-uuid! (:block/uuid view))))}
+        (ui/icon "plus" {:size 15}))]))))
 
 (hsx/defc view-head
   [view-parent view-entity table columns input sorting
@@ -3220,13 +3295,19 @@
      (fn []
        (when (and view-parent (not (.-current *started?)))
          (set! (.-current *started?) true)
-         (-> (create-view! view-parent view-feature-type {:auto-triggered? true})
-             (p/then (fn [view]
-                       (when-not view
-                         (throw (ex-info "Default view creation returned no view"
-                                         {:view-parent-uuid view-parent-uuid
-                                          :view-feature-type view-feature-type})))))
-             (p/catch set-error!)))
+         (let [task-class-view? (task-view? view-parent view-feature-type)]
+           (-> (p/let [view (create-view! view-parent view-feature-type
+                                          {:auto-triggered? true})
+                       _ (when-not view
+                           (throw (ex-info "Default view creation returned no view"
+                                           {:view-parent-uuid view-parent-uuid
+                                            :view-feature-type view-feature-type})))
+                       _ (when task-class-view?
+                           (create-view! view-parent view-feature-type
+                                         {:auto-triggered? true
+                                          :task-done-view? true}))]
+                 view)
+               (p/catch set-error!))))
        js/undefined)
      [view-parent view-parent-uuid view-feature-type])
     (when error
@@ -3239,6 +3320,12 @@
                      (db-hooks/use-resource
                       [:views view-parent-uuid view-feature-type]))
         selected-view-uuids (if query-result? [view-uuid] view-uuids)]
+    (hooks/use-effect!
+     (fn []
+       (when-not query-result?
+         (ensure-task-views! view-parent-uuid view-feature-type view-uuids))
+       js/undefined)
+     [query-result? view-parent-uuid view-feature-type view-uuids])
     (cond
       (seq selected-view-uuids)
       (selected-view selected-view-uuids option)
