@@ -24,8 +24,9 @@
 
 (defn- enabled?
   []
-  ;; Never upload fixtures or temporary databases from the test runner.
-  (not= "test" (.-NODE_ENV js/process.env)))
+  ;; Upload only from Electron itself, never from Node-based tests or CLI tools.
+  (and (some? (.-electron js/process.versions))
+       (not= "test" (.-NODE_ENV js/process.env))))
 
 (defn- gh-command
   []
@@ -82,7 +83,7 @@
 
 (defn- upload-backup!
   [repo {:keys [backup-name path]}]
-  (let [asset-name (str backup-name ".sqlite")
+  (let [asset-name (str (node-path/basename backup-name) ".sqlite")
         upload-dir (fs/mkdtempSync (node-path/join (.tmpdir os) "logseq-github-backup-"))
         upload-path (node-path/join upload-dir asset-name)]
     (fs/copyFileSync path upload-path)

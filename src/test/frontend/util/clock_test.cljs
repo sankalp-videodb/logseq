@@ -14,3 +14,8 @@
                [5, 14, 41, 22],
                [27, 17, 8, 23]]]
     (mapv #(is (= (clock/s->dhms-util %1) %2)) inputs want)))
+
+(deftest seconds-format-keeps-hours-when-minutes-are-zero
+  (is (= "2h" (clock/seconds->days:hours:minutes:seconds 7220)))
+  (is (= "2h1m" (clock/seconds->days:hours:minutes:seconds 7280)))
+  (is (= "20s" (clock/seconds->days:hours:minutes:seconds 20))))
