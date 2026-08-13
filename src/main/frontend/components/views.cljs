@@ -2598,7 +2598,8 @@
   (and (= :class-objects view-feature-type)
        (or (= :logseq.class/Task (:db/ident view-parent))
            (and (:logseq.property/built-in? view-parent)
-                (= "task" (:block/name view-parent))))))
+                (= "task" (:block/name view-parent)))
+           (= "Task" (:block/title view-parent)))))
 
 (defn- task-status-filter
   [done? done-status-uuid]
