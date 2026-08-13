@@ -2685,7 +2685,7 @@
                          (when (contains? #{"" (t :view/all)} (:block/title active-view))
                            (editor-handler/save-block! repo active-view (t :nav/tasks)))
                          (property-handler/set-block-property!
-                          (:db/id active-view)
+                          (:block/uuid active-view)
                           :logseq.property.table/filters
                           (task-status-filter false done-status-uuid))))
                     _ (when-not done-view
