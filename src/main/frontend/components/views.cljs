@@ -2592,8 +2592,13 @@
 
 (defn- task-view?
   [view-parent view-feature-type]
+  ;; Canonical renderer blocks intentionally omit :db/ident, while blocks
+  ;; loaded directly from the worker include it. Recognize the built-in Task
+  ;; class in both shapes so existing views are migrated from the page UI.
   (and (= :class-objects view-feature-type)
-       (= :logseq.class/Task (:db/ident view-parent))))
+       (or (= :logseq.class/Task (:db/ident view-parent))
+           (and (:logseq.property/built-in? view-parent)
+                (= "task" (:block/name view-parent))))))
 
 (defn- task-status-filter
   [done? done-status-uuid]
