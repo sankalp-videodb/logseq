@@ -32,6 +32,7 @@
             [frontend.handler.repo-config :as repo-config-handler]
             [frontend.handler.route :as route-handler]
             [frontend.handler.shell :as shell-handler]
+            [frontend.handler.task-reminder :as task-reminder-handler]
             [frontend.handler.ui :as ui-handler]
             [frontend.handler.user :as user-handler]
             [frontend.mobile.util :as mobile-util]
@@ -196,7 +197,8 @@
 (defevent! :graph/ready
   [[_ repo]]
   ;; FIXME: an ugly implementation for redirecting to page on new window is restored
-  (repo-handler/graph-ready! repo))
+  (repo-handler/graph-ready! repo)
+  (task-reminder-handler/start! repo))
 
 (defevent! :instrument [[_ {:keys [type payload] :as opts}]]
   (when-not (empty? (dissoc opts :type :payload))

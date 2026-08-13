@@ -88,6 +88,30 @@
     (is (= 2 (:count result)))
     (is (= #{"With timestamp" "Without timestamp"} (set titles)))))
 
+(deftest sort-entities-keeps-missing-values-last-test
+  (let [conn (db-test/create-conn-with-blocks
+              {:pages-and-blocks
+               [{:page {:block/title "High"}}
+                {:page {:block/title "Medium"}}
+                {:page {:block/title "Low"}}
+                {:page {:block/title "No priority"}}]})
+        title->id (into {}
+                        (d/q '[:find ?title ?e
+                               :where
+                               [?e :block/name]
+                               [?e :block/title ?title]]
+                             @conn))
+        _ (d/transact! conn
+                       [[:db/add (title->id "High") :logseq.property/priority :logseq.property/priority.high]
+                        [:db/add (title->id "Medium") :logseq.property/priority :logseq.property/priority.medium]
+                        [:db/add (title->id "Low") :logseq.property/priority :logseq.property/priority.low]])
+        entities (mapv #(d/entity @conn %) (vals title->id))
+        sorted (db-view/sort-entities @conn
+                                      [{:id :logseq.property/priority :asc? false}]
+                                      entities)]
+    (is (= ["High" "Medium" "Low" "No priority"]
+           (mapv :block/title sorted)))))
+
 (deftest get-view-data-class-objects-simple-is-filter-test
   (let [conn (db-test/create-conn-with-blocks
               {:classes {:Topic {:block/title "Topic"}}

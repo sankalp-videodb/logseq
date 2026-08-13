@@ -28,6 +28,7 @@
             [electron.server :as server]
             [electron.shell :as shell]
             [electron.state :as state]
+            [electron.task-reminder :as task-reminder]
             [electron.utils :as utils]
             [electron.window :as win]
             [electron.graph-switch-flow :as graph-switch-flow]
@@ -572,6 +573,18 @@
 
 (defmethod handle :system/info [^js _win _]
   {:home-dir (.homedir os)})
+
+(defmethod handle :task-reminder/schedule [window [_ reminder]]
+  (task-reminder/schedule! window reminder))
+
+(defmethod handle :task-reminder/cancel [window [_ {:keys [task-id]}]]
+  (task-reminder/cancel! window task-id))
+
+(defmethod handle :task-reminder/replace-all [window [_ reminders]]
+  (task-reminder/replace-all! window reminders))
+
+(defmethod handle :task-reminder/show [window [_ reminder]]
+  (task-reminder/show! window reminder))
 
 (defmethod handle :window/open-blank-callback [^js win [_ _type]]
   (win/setup-window-listeners! win) nil)

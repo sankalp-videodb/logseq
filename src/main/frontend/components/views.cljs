@@ -3029,8 +3029,13 @@
         :logseq.property.view/type.list)
         :logseq.property.view/type.table)))
 
-(def ^:private default-view-sorting
-  [{:id :block/updated-at :asc? false}])
+(defn- default-view-sorting
+  [view-entity]
+  (if (= :logseq.class/Task
+         (:db/ident (:logseq.property/view-for view-entity)))
+    [{:id :logseq.property/priority :asc? false}
+     {:id :block/updated-at :asc? false}]
+    [{:id :block/updated-at :asc? false}]))
 
 (defn- effective-view-sorting
   [view-entity]
@@ -3042,7 +3047,7 @@
       (or (nil? sorting)
           empty-placeholder?
           (and (coll? sorting) (empty? sorting)))
-      default-view-sorting
+      (default-view-sorting view-entity)
 
       (vector? sorting)
       sorting

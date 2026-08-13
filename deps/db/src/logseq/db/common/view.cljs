@@ -66,7 +66,14 @@
   [{:keys [asc? get-value]}]
   (let [cmp (if asc? compare #(compare %2 %1))]
     (fn [a b]
-      (cmp (get-value a) (get-value b)))))
+      (let [a-value (get-value a)
+            b-value (get-value b)]
+        ;; Missing values stay below configured values in both directions.
+        (cond
+          (and (nil? a-value) (nil? b-value)) 0
+          (nil? a-value) 1
+          (nil? b-value) -1
+          :else (cmp a-value b-value))))))
 
 (defn- sort-ref-entities-by-single-property
   "get all entities sorted by `major-sorting`"

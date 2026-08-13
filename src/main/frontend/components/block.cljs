@@ -29,6 +29,7 @@
             [frontend.components.query.builder :as query-builder-component]
             [frontend.components.select :as select]
             [frontend.components.svg :as svg]
+            [frontend.components.task-config :as task-config]
             [frontend.config :as config]
             [frontend.context.i18n :refer [t]]
             [frontend.date :as date]
@@ -3615,6 +3616,13 @@
           (when-not table?
             [:div.opacity-70.hover:opacity-100
              (block-positioned-properties config block :block-right)])
+
+          (when (and (util/electron?)
+                     (task-block? block)
+                     (not config/publishing?)
+                     (not (or (:block-ref? config) (:table? config) (:gallery-view? config)
+                              (:property? config))))
+            (task-config/task-config-button block))
 
                   (when-not (or (:block-ref? config) (:table? config) (:gallery-view? config)
                                 (:property? config) (:hide-block-tags? config))

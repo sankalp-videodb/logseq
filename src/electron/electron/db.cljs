@@ -3,6 +3,7 @@
   (:require ["fs-extra" :as fs]
             ["path" :as node-path]
             [electron.db-worker :as db-worker]
+            [electron.github-backup :as github-backup]
             [lambdaisland.glogi :as log]
             [logseq.cli.transport :as cli-transport]
             [logseq.common.graph :as common-graph]
@@ -50,15 +51,18 @@
   [db-name opts snapshot!]
   (let [_ (ensure-graph-dir! db-name)
         source (backup-source opts)]
-    (graph-backup/<create-backup!
-     (cond-> {:graphs-dir (common-graph/get-db-graphs-dir)
-              :repo db-name
-              :backup-name (graph-backup/build-backup-name db-name nil)
-              :source source
-              :snapshot! snapshot!}
-       (= :electron-auto source)
-       (assoc :throttle-ms backup-interval-ms
-              :keep-versions automatic-backup-keep-versions)))))
+    (-> (graph-backup/<create-backup!
+         (cond-> {:graphs-dir (common-graph/get-db-graphs-dir)
+                  :repo db-name
+                  :backup-name (graph-backup/build-backup-name db-name nil)
+                  :source source
+                  :snapshot! snapshot!}
+           (= :electron-auto source)
+           (assoc :throttle-ms backup-interval-ms
+                  :keep-versions automatic-backup-keep-versions)))
+        (p/then (fn [result]
+                  (github-backup/enqueue-upload! result)
+                  result)))))
 
 (defn backup-db-with-sqlite-backup!
   [db-name {:keys [force-backup? sqlite-backup!]}]

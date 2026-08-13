@@ -144,6 +144,20 @@
  :block/switch-to-plugin-renderer "Switch to plugin renderer"
  :block/untitled-query "Untitled query"
 
+ :block.task-config/clear-reminder "Clear reminder"
+ :block.task-config/in-one-hour "In 1 hour"
+ :block.task-config/in-three-hours "In 3 hours"
+ :block.task-config/monday-at "Monday at {1}"
+ :block.task-config/notification-title "Logseq reminder"
+ :block.task-config/remind-me "Remind me"
+ :block.task-config/saturday-at "Saturday at {1}"
+ :block.task-config/scheduled-for "Scheduled for {1}"
+ :block.task-config/today-at-passed "Today at 10:00 PM (passed)"
+ :block.task-config/today-at "Today at {1}"
+ :block.task-config/tomorrow-at "Tomorrow at {1}"
+ :block.task-config/tooltip "Configure task"
+ :block.task-config/untitled-task "Untitled task"
+
  :block.comments/add-comment "Add comment"
  :block.comments/add-comment-command-desc "Add a comment to this block."
  :block.comments/collapsed-summary (fn [n author] (str n (if (= 1 n) " comment" " comments") " · latest from " author))
