@@ -214,7 +214,7 @@
   [journal-uuid option]
   (let [page (db-hooks/use-block-projection journal-uuid render-stable-page)
         child-uuids (db-hooks/use-children journal-uuid)
-        child-blocks (mapv db-hooks/use-block child-uuids)
+        child-blocks (db-hooks/use-blocks child-uuids)
         document-mode? (rfx/use-sub [:document/mode?])]
     (when page
       (let [container-id (or (:container-id option)
