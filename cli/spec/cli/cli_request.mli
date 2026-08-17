@@ -3,6 +3,7 @@ type parsed_command =
   | Graph of Graph.parsed
   | List of List_command.parsed
   | Upsert of Upsert.parsed
+  | Goal of Goal.parsed
   | Remove of Remove.parsed
   | Search of Search.parsed
   | Query of Query.parsed

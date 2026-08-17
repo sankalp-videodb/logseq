@@ -17,6 +17,7 @@ let command_metadata () =
          Graph.metadata ();
          List_command.metadata ();
          Upsert.metadata ();
+         Goal.metadata ();
          Remove.metadata ();
          Search.metadata ();
          Query.metadata ();
@@ -40,10 +41,12 @@ let make_app ?version:_ () =
 let make_app_context = make_app
 let env_lookup env key = Vec.assoc_opt key env
 let is_option token = String.length token > 0 && token.[0] = '-'
+
 let option_value key options =
   Vec.find_map
     (fun (candidate, value) -> if candidate = key then value else None)
     options
+
 let option_present key options = Vec.mem_assoc key options
 
 let normalize_key = function

@@ -33,6 +33,16 @@ type t =
   | Upsert_asset
   | Upsert_tag
   | Upsert_property
+  | Goal_list
+  | Goal_show
+  | Goal_create
+  | Goal_update
+  | Goal_delete
+  | Goal_progress
+  | Goal_check_in
+  | Goal_pause
+  | Goal_resume
+  | Goal_archive
   | Remove_block
   | Remove_page
   | Remove_tag

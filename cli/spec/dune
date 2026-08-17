@@ -64,6 +64,7 @@
   Graph
   List_command
   Upsert
+  Goal
   Remove
   Search
   Query

@@ -153,6 +153,71 @@
   [#{[:journals]}
    (mapv :block/uuid (ldb/get-latest-journals db))])
 
+(def ^:private goal-pull-pattern
+  '[:db/id
+    :block/uuid
+    :block/title
+    :block/created-at
+    {:logseq.property/description [:block/title]}
+    :logseq.property.goal/weekly-target
+    :logseq.property.goal/weekly-unit
+    :logseq.property.goal/daily-check-in
+    :logseq.property.goal/check-in-days
+    :logseq.property.goal/reminder-minutes
+    :logseq.property.goal/start-day
+    {:logseq.property.goal/state [:db/ident :block/title]}])
+
+(def ^:private goal-record-pull-pattern
+  '[:db/id
+    :block/uuid
+    :block/title
+    :block/created-at
+    :logseq.property.goal/record-day
+    :logseq.property.goal/value
+    :logseq.property/scheduled
+    {:logseq.property.goal/ref [:db/id :block/uuid :block/title]}
+    {:logseq.property.goal/record-kind [:db/ident :block/title]}
+    {:logseq.property/status [:db/ident :block/title]}])
+
+(defn- goal-wire-value
+  [goal]
+  (update goal :logseq.property/description
+          #(if (map? %) (:block/title %) %)))
+
+(defn- goals
+  [db _resource-key _runtime]
+  (let [goal-ids (d/q '[:find [?goal ...]
+                        :where
+                        [?goal :block/tags :logseq.class/Goal]] db)
+        record-ids (d/q '[:find [?record ...]
+                          :where
+                          [?record :logseq.property.goal/ref]
+                          [?record :logseq.property.goal/record-kind]] db)]
+    [#{[:attr :block/tags]
+       [:attr :block/title]
+       [:attr :logseq.property/description]
+       [:attr :logseq.property.goal/state]
+       [:attr :logseq.property.goal/weekly-target]
+       [:attr :logseq.property.goal/weekly-unit]
+       [:attr :logseq.property.goal/daily-check-in]
+       [:attr :logseq.property.goal/check-in-days]
+       [:attr :logseq.property.goal/reminder-minutes]
+       [:attr :logseq.property.goal/start-day]
+       [:attr :logseq.property.goal/ref]
+       [:attr :logseq.property.goal/record-day]
+       [:attr :logseq.property.goal/record-kind]
+       [:attr :logseq.property.goal/value]
+       [:attr :logseq.property/status]}
+     {:goals (->> goal-ids
+                  (map #(d/pull db goal-pull-pattern %))
+                  (map goal-wire-value)
+                  (sort-by :block/created-at)
+                  vec)
+      :records (->> record-ids
+                    (map #(d/pull db goal-record-pull-pattern %))
+                    (sort-by :block/created-at)
+                    vec)}]))
+
 (defn- recycle-roots
   [db _resource-key _runtime]
   (let [roots (->> (d/q '[:find [?e ...]
@@ -394,6 +459,7 @@
    :page-preview-source (common/renderer 2 page-preview-source)
    :block-breadcrumb (common/renderer 3 block-breadcrumb)
    :journals (common/renderer 1 journals)
+   :goals (common/renderer 1 goals)
    :recycle-roots (common/renderer 1 recycle-roots)
    :property-choices (common/renderer 2 property-choices)
    :block-reactions (common/renderer 3 block-reactions)

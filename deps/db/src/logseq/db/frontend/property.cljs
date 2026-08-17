@@ -398,6 +398,75 @@
                                                :schema {:type :property
                                                         :hide? true}}
 
+     ;; Goal props
+     :logseq.property.goal/state {:title "Goal state"
+                                  :schema {:type :default
+                                           :public? false
+                                           :hide? true}
+                                  :closed-values
+                                  (mapv (fn [[db-ident value]]
+                                          {:db-ident db-ident
+                                           :value value
+                                           :uuid (common-uuid/gen-uuid :db-ident-block-uuid db-ident)})
+                                        [[:logseq.property.goal/state.active "Active"]
+                                         [:logseq.property.goal/state.paused "Paused"]
+                                         [:logseq.property.goal/state.archived "Archived"]])
+                                  :queryable? true}
+     :logseq.property.goal/weekly-target {:title "Weekly target"
+                                          :schema {:type :raw-number
+                                                   :public? false
+                                                   :hide? true}
+                                          :queryable? true}
+     :logseq.property.goal/weekly-unit {:title "Weekly target unit"
+                                        :schema {:type :string
+                                                 :public? false
+                                                 :hide? true}}
+     :logseq.property.goal/daily-check-in {:title "Goal task"
+                                           :schema {:type :string
+                                                    :public? false
+                                                    :hide? true}}
+     :logseq.property.goal/check-in-days {:title "Goal task weekdays"
+                                          :schema {:type :raw-number
+                                                   :public? false
+                                                   :hide? true}}
+     :logseq.property.goal/reminder-minutes {:title "Daily reminder time"
+                                             :schema {:type :raw-number
+                                                      :public? false
+                                                      :hide? true}}
+     :logseq.property.goal/start-day {:title "Goal start date"
+                                      :schema {:type :raw-number
+                                               :public? false
+                                               :hide? true}}
+     :logseq.property.goal/ref {:title "Goal"
+                                :schema {:type :node
+                                         :public? false
+                                         :hide? true}
+                                :queryable? true}
+     :logseq.property.goal/record-day {:title "Goal record date"
+                                       :schema {:type :raw-number
+                                                :public? false
+                                                :hide? true}
+                                       :queryable? true}
+     :logseq.property.goal/record-kind {:title "Goal record kind"
+                                        :schema {:type :default
+                                                 :public? false
+                                                 :hide? true}
+                                        :closed-values
+                                        (mapv (fn [[db-ident value]]
+                                                {:db-ident db-ident
+                                                 :value value
+                                                 :uuid (common-uuid/gen-uuid :db-ident-block-uuid db-ident)})
+                                              [[:logseq.property.goal/record-kind.daily "Daily check-in"]
+                                               [:logseq.property.goal/record-kind.progress "Weekly progress"]
+                                               [:logseq.property.goal/record-kind.pause "Pause"]
+                                               [:logseq.property.goal/record-kind.resume "Resume"]
+                                               [:logseq.property.goal/record-kind.archive "Archive"]])
+                                        :queryable? true}
+     :logseq.property.goal/value {:title "Goal progress value"
+                                  :schema {:type :raw-number
+                                           :public? false
+                                           :hide? true}}
+
      :logseq.property/assignee {:title "Assignee"
                                 :schema {:type :node
                                          :cardinality :many
@@ -760,7 +829,8 @@
     "logseq.property.journal" "logseq.property.class" "logseq.property.view"
     "logseq.property.user" "logseq.property.history"
     "logseq.property.reaction" "logseq.property.sync" "logseq.property.publish"
-    "logseq.property.recycle" "logseq.property.comments" "logseq.property.agent"})
+    "logseq.property.recycle" "logseq.property.comments" "logseq.property.agent"
+    "logseq.property.goal"})
 
 (defn logseq-property?
   "Determines if keyword is a logseq property"

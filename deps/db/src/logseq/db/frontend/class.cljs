@@ -41,6 +41,26 @@
      {:title "Task"
       :schema {:properties [:logseq.property/status :logseq.property/priority :logseq.property/deadline :logseq.property/scheduled]}}
 
+     :logseq.class/Goal
+     {:title "Goal"
+      :properties {:logseq.property/icon {:type :tabler-icon :id "target"}}
+      :schema {:properties [:logseq.property/description
+                            :logseq.property.goal/state
+                            :logseq.property.goal/weekly-target
+                            :logseq.property.goal/weekly-unit
+                            :logseq.property.goal/daily-check-in
+                            :logseq.property.goal/check-in-days
+                            :logseq.property.goal/reminder-minutes
+                            :logseq.property.goal/start-day]}}
+
+     :logseq.class/Goal-record
+     {:title "Goal record"
+      :properties {:logseq.property.class/hide-from-node true}
+      :schema {:properties [:logseq.property.goal/ref
+                            :logseq.property.goal/record-day
+                            :logseq.property.goal/record-kind
+                            :logseq.property.goal/value]}}
+
      :logseq.class/Comments
      {:title "Comments"
       :properties {:logseq.property.class/hide-from-node true

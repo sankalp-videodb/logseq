@@ -405,3 +405,48 @@
     (is (every? #(= :raw-number (:logseq.property/type (d/entity @conn %)))
                 [:logseq.property.view/gallery-card-width
                  :logseq.property.view/gallery-card-height]))))
+
+(deftest migrate-65-35-and-36-repairs-goal-numbers-schema-and-tasks
+  (let [goal-number-properties [:logseq.property.goal/weekly-target
+                                :logseq.property.goal/check-in-days
+                                :logseq.property.goal/reminder-minutes
+                                :logseq.property.goal/start-day
+                                :logseq.property.goal/record-day
+                                :logseq.property.goal/value]
+        legacy-schema (reduce #(assoc %1 %2 {:db/valueType :db.type/ref})
+                              db-schema/schema
+                              goal-number-properties)
+        conn (d/create-conn legacy-schema)
+        goal-uuid #uuid "33333333-3333-3333-3333-333333333333"
+        task-uuid #uuid "44444444-4444-4444-4444-444444444444"]
+    (d/transact! conn [{:db/ident :logseq.kv/schema-version
+                        :kv/value {:major 65 :minor 34}}
+                       {:db/ident :logseq.class/Goal}
+                       {:db/ident :logseq.class/Goal-record}
+                       {:db/ident :logseq.class/Task}
+                       {:db/ident :logseq.property.goal/record-kind.daily}
+                       {:db/id 600 :logseq.property/value 5}
+                       {:block/uuid goal-uuid
+                        :block/title "Read"
+                        :block/tags #{:logseq.class/Goal}
+                        :logseq.property.goal/weekly-target 600}
+                       {:block/uuid task-uuid
+                        :block/title "Read deeply"
+                        :block/tags #{:logseq.class/Goal-record :logseq.class/Task}
+                        :logseq.property.goal/record-kind
+                        :logseq.property.goal/record-kind.daily}])
+
+    (db-migrate/migrate conn :target-version {:major 65 :minor 36})
+
+    (let [goal (d/entity @conn [:block/uuid goal-uuid])
+          task (d/entity @conn [:block/uuid task-uuid])
+          task-tags (set (map :db/ident (:block/tags task)))]
+      (is (= 5 (:logseq.property.goal/weekly-target goal)))
+      (is (= #{:logseq.class/Task} task-tags))
+      (is (nil? (get-in (d/schema @conn)
+                        [:logseq.property.goal/weekly-target :db/valueType])))
+      (is (nil? (:db/valueType
+                 (d/entity @conn :logseq.property.goal/weekly-target))))
+      (is (= :raw-number
+             (:logseq.property/type
+              (d/entity @conn :logseq.property.goal/check-in-days)))))))

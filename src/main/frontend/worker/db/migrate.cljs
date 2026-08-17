@@ -120,6 +120,52 @@
              [[:db/retract (:db/id class) :block/order (:block/order class)]]))))
       [:logseq.class/Comments :logseq.class/Comment]))))
 
+(def ^:private goal-raw-number-properties
+  [:logseq.property.goal/weekly-target
+   :logseq.property.goal/check-in-days
+   :logseq.property.goal/reminder-minutes
+   :logseq.property.goal/start-day
+   :logseq.property.goal/record-day
+   :logseq.property.goal/value])
+
+(defn- repair-goal-data
+  "Convert Goal numbers created under the old :number schema to scalar values,
+  and make daily Goal tasks visible in the native Tasks view."
+  [db]
+  (let [number-tx (mapcat
+                   (fn [property]
+                     (mapcat (fn [[entity-id value-id]]
+                               (when-let [value (:logseq.property/value (d/entity db value-id))]
+                                 (when (number? value)
+                                   [[:db/retract entity-id property value-id]
+                                    [:db/add entity-id property value]])))
+                             (d/q '[:find ?entity ?value
+                                  :in $ ?property
+                                  :where [?entity ?property ?value]]
+                                db property)))
+                   goal-raw-number-properties)
+        stale-schema-tx (mapcat (fn [property]
+                                  (when-let [value-type (:db/valueType (d/entity db property))]
+                                    [[:db/retract property :db/valueType value-type]]))
+                                goal-raw-number-properties)
+        daily-task-ids (if (every? #(d/entity db %)
+                                   [:logseq.class/Task
+                                    :logseq.class/Goal-record
+                                    :logseq.property.goal/record-kind.daily])
+                         (d/q '[:find [?task ...]
+                                :where
+                                [?task :block/tags :logseq.class/Task]
+                                [?task :block/tags :logseq.class/Goal-record]
+                                [?task :logseq.property.goal/record-kind
+                                 :logseq.property.goal/record-kind.daily]]
+                              db)
+                         [])]
+    (concat number-tx
+            stale-schema-tx
+            (map (fn [task-id]
+                   [:db/retract task-id :block/tags :logseq.class/Goal-record])
+                 daily-task-ids))))
+
 (def schema-version->updates
   "A vec of tuples defining datascript migrations. Each tuple consists of the
    schema version integer and a migration map. A migration map can have keys of :properties, :classes
@@ -162,7 +208,24 @@
                           :logseq.property.view/gallery-display-properties
                           :logseq.property.view/gallery-card-size
                           :logseq.property.view/gallery-card-width
-                          :logseq.property.view/gallery-card-height]}]])
+                          :logseq.property.view/gallery-card-height]}]
+   ["65.34" {:classes [:logseq.class/Goal :logseq.class/Goal-record]
+              :properties [:logseq.property/description
+                           :logseq.property.goal/state
+                           :logseq.property.goal/weekly-target
+                           :logseq.property.goal/weekly-unit
+                           :logseq.property.goal/daily-check-in
+                           :logseq.property.goal/check-in-days
+                           :logseq.property.goal/reminder-minutes
+                           :logseq.property.goal/start-day
+                           :logseq.property.goal/ref
+                           :logseq.property.goal/record-day
+                           :logseq.property.goal/record-kind
+                           :logseq.property.goal/value]}]
+   ["65.35" {:properties [:logseq.property.goal/check-in-days]
+              :fix repair-goal-data}]
+   ["65.36" {:fix repair-goal-data
+              :reset-goal-number-schema? true}]])
 
 (let [[major minor] (last (sort (map (comp (juxt :major :minor) db-schema/parse-schema-version first)
                                      schema-version->updates)))]
@@ -254,7 +317,7 @@
 
 (defn- upgrade-version!
   "Return tx-data"
-  [conn version {:keys [properties classes fix delete-properties] :as migrate-updates}]
+  [conn version {:keys [properties classes fix delete-properties reset-goal-number-schema?] :as migrate-updates}]
   (let [version (db-schema/parse-schema-version version)
         db @conn
         new-properties (->> (select-keys db-property/built-in-properties properties)
@@ -288,6 +351,12 @@
                   tx-data)
         r (ldb/transact! conn tx-data' {:db-migrate? true
                                         :skip-validate-db? true})]
+    ;; Datascript persists its schema separately from built-in Property entities.
+    ;; Goal numeric properties were initially shipped as refs, so updating those
+    ;; entities to :raw-number alone leaves restored graphs with a stale ref schema.
+    ;; Preserve graph-specific indexes and remove only the obsolete Goal entries.
+    (when reset-goal-number-schema?
+      (d/reset-schema! conn (apply dissoc (d/schema @conn) goal-raw-number-properties)))
     (println "DB schema migrated to" version)
     (assoc r :migrate-updates migrate-updates)))
 

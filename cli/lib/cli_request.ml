@@ -3,6 +3,7 @@ type parsed_command =
   | Graph of Graph.parsed
   | List of List_command.parsed
   | Upsert of Upsert.parsed
+  | Goal of Goal.parsed
   | Remove of Remove.parsed
   | Search of Search.parsed
   | Query of Query.parsed
@@ -33,6 +34,7 @@ let command_id t =
   | Graph p -> Graph.command_id p
   | List p -> List_command.command_id p
   | Upsert p -> Upsert.command_id p
+  | Goal p -> Goal.command_id p
   | Remove p -> Remove.command_id p
   | Search p -> Search.command_id p
   | Query p -> Query.command_id p

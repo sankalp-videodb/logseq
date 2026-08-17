@@ -281,6 +281,13 @@
             :icon "calendar"
             :shortcut :go/journals})))
 
+      (sidebar-item
+       {:class "goals-nav"
+        :title (t :nav/goals)
+        :href (rfe/href :goals)
+        :active (and (not srs-open?) (= route-name :goals))
+        :icon "target"})
+
       (for [nav checked-navs]
         (cond
           (= nav :flashcards)

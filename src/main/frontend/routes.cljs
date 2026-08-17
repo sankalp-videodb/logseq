@@ -4,6 +4,7 @@
             [frontend.components.bug-report :as bug-report]
             [frontend.components.file :as file]
             [frontend.components.graph :as graph]
+            [frontend.components.goals :as goals]
             [frontend.components.home :as home]
             [frontend.components.imports :as imports]
             [frontend.components.journal :as journal]
@@ -49,6 +50,10 @@
    ["/graph"
     {:name :graph
      :view graph/global-graph}]
+
+   ["/goals"
+    {:name :goals
+     :view goals/goals-page}]
 
    ["/settings"
     {:name :settings

@@ -3,6 +3,7 @@ type t =
   | Graph of Graph.action
   | List of List_command.action
   | Upsert of Upsert.action
+  | Goal of Goal.action
   | Remove of Remove.action
   | Search of Search.action
   | Query of Query.action
@@ -44,6 +45,9 @@ let build config request =
     | Upsert parsed ->
         Error.bind (Upsert.build config request.globals parsed) (fun action ->
             Ok (Upsert action))
+    | Goal parsed ->
+        Error.bind (Goal.build config request.globals parsed) (fun action ->
+            Ok (Goal action))
     | Remove parsed ->
         Error.bind (Remove.build config request.globals parsed) (fun action ->
             Ok (Remove action))
@@ -99,6 +103,7 @@ let execute action config =
   | Graph action -> Graph.execute action config
   | List action -> List_command.execute action config
   | Upsert action -> Upsert.execute action config
+  | Goal action -> Goal.execute action config
   | Remove action -> Remove.execute action config
   | Search action -> Search.execute action config
   | Query action -> Query.execute action config
@@ -125,11 +130,31 @@ let requires_missing_graph = function
 let repo = function
   | Graph a -> Graph.repo a
   | Upsert a -> Some (Upsert.repo a)
+  | Goal
+      ( Goal.List { repo; _ }
+      | Show { repo; _ }
+      | Create { repo; _ }
+      | Update { repo; _ }
+      | Delete { repo; _ }
+      | Progress { repo; _ }
+      | Check_in { repo; _ }
+      | Set_state { repo; _ } ) ->
+      Some repo
   | Sync (Sync.Sync_download { repo; _ }) -> Some repo
   | _ -> None
 
 let graph = function
   | Graph a -> Graph.graph a
   | Upsert a -> Some (Upsert.graph a)
+  | Goal
+      ( Goal.List { graph; _ }
+      | Show { graph; _ }
+      | Create { graph; _ }
+      | Update { graph; _ }
+      | Delete { graph; _ }
+      | Progress { graph; _ }
+      | Check_in { graph; _ }
+      | Set_state { graph; _ } ) ->
+      Some graph
   | Sync (Sync.Sync_download { graph; _ }) -> Some graph
   | _ -> None

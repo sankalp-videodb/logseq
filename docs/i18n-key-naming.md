@@ -200,6 +200,7 @@ plausible, use the conflict rules below.
 - `asset`
 - `pdf`
 - `flashcard`
+- `goal`
 
 #### 3.2 Data movement and publishing domains
 
@@ -262,6 +263,7 @@ Use this table to resolve common conflicts.
 | `asset` | Attachments and embedded media assets | Generic file browser or export |
 | `pdf` | PDF viewer and PDF-specific reading/annotation behavior | Generic asset browsing or generic reference behavior |
 | `flashcard` | Card review, card study flow, card-specific review UI | Generic editor actions or generic query/view controls |
+| `goal` | Goal definitions, progress, check-ins, streaks, and goal lifecycle | Generic task status or journal-only behavior |
 | `import` | Import workflows, import source parsing, import options, and import-specific validation/feedback | Export, publish, or generic file browser wording |
 | `export` | Export workflows, export format/options, export progress, and export-specific feedback | Import flows, publish lifecycle, or generic file browser wording |
 | `publish` | Publish and unpublish flows, publish access settings, and publish status/failure messages | Generic export formats/backups, sync state, or account identity |

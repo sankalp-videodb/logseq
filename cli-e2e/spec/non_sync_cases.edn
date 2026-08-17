@@ -214,6 +214,37 @@
      :list ["--fields" "--limit" "--sort" "--order"]}},
    :tags [:upsert :list :smoke],
    :extends :non-sync/graph-json-env}
+  {:id "goal-native-lifecycle-json",
+   :cmds
+   ["{{cli}} --root-dir {{root-dir-arg}} --config {{config-path-arg}} --output json goal create --graph {{graph-arg}} --title 'CLI Goal' --daily-check-in 'Review goal' --task-days mon,tue,wed,thu,fri,sat,sun --reminder-minutes 540 >/dev/null"
+    "GOAL_ID=\"$({{cli}} --root-dir {{root-dir-arg}} --config {{config-path-arg}} --output json goal list --graph {{graph-arg}} | python3 -c 'import sys,json; print(json.load(sys.stdin)[\"data\"][0][\"db/id\"])')\"; {{cli}} --root-dir {{root-dir-arg}} --config {{config-path-arg}} --output json goal update --graph {{graph-arg}} --id \"$GOAL_ID\" --title 'Updated Goal' --task-days mon,tue,wed,thu,fri,sat,sun --reminder-minutes 600 >/dev/null"
+    "GOAL_ID=\"$({{cli}} --root-dir {{root-dir-arg}} --config {{config-path-arg}} --output json goal list --graph {{graph-arg}} | python3 -c 'import sys,json; print(json.load(sys.stdin)[\"data\"][0][\"db/id\"])')\"; {{cli}} --root-dir {{root-dir-arg}} --config {{config-path-arg}} --output json goal check-in --graph {{graph-arg}} --id \"$GOAL_ID\" --status completed >/dev/null"
+    "GOAL_ID=\"$({{cli}} --root-dir {{root-dir-arg}} --config {{config-path-arg}} --output json goal list --graph {{graph-arg}} | python3 -c 'import sys,json; print(json.load(sys.stdin)[\"data\"][0][\"db/id\"])')\"; {{cli}} --root-dir {{root-dir-arg}} --config {{config-path-arg}} --output json goal show --graph {{graph-arg}} --id \"$GOAL_ID\" | python3 -c 'import sys,json; data=json.load(sys.stdin)[\"data\"]; assert data[\"goal\"][\"block/title\"]==\"Updated Goal\"; assert data[\"goal\"][\"logseq.property.goal/reminder-minutes\"]==600; assert len(data[\"check-ins\"])==1; task=data[\"check-ins\"][0]; assert task[\"logseq.property/status\"][\"db/ident\"]==\"logseq.property/status.done\"'"
+    "GOAL_ID=\"$({{cli}} --root-dir {{root-dir-arg}} --config {{config-path-arg}} --output json goal list --graph {{graph-arg}} | python3 -c 'import sys,json; print(json.load(sys.stdin)[\"data\"][0][\"db/id\"])')\"; {{cli}} --root-dir {{root-dir-arg}} --config {{config-path-arg}} --output json goal delete --graph {{graph-arg}} --id \"$GOAL_ID\" >/dev/null"
+    "{{cli}} --root-dir {{root-dir-arg}} --config {{config-path-arg}} --output json query --graph {{graph-arg}} --query '[:find ?r :where [?r :logseq.property.goal/ref]]' | python3 -c 'import sys,json; assert json.load(sys.stdin)[\"data\"][\"result\"]==[]'"
+    "{{cli}} --root-dir {{root-dir-arg}} --config {{config-path-arg}} --output json goal list --graph {{graph-arg}}"],
+   :expect
+   {:exit 0,
+    :stdout-json-paths {[:status] "ok"}},
+   :covers
+   {:commands
+    ["goal create"
+     "goal list"
+     "goal show"
+     "goal update"
+     "goal check-in"
+     "goal delete"],
+    :options
+    {:global ["--config" "--graph" "--root-dir" "--output"],
+     :goal
+     ["--title"
+      "--daily-check-in"
+      "--task-days"
+      "--reminder-minutes"
+      "--id"
+      "--status"]}},
+   :tags [:goal :smoke],
+   :extends :non-sync/graph-json-env}
   {:id "task-upsert-and-list-json",
    :cmds
    ["{{cli}} --root-dir {{root-dir-arg}} --config {{config-path-arg}} --output json upsert task --graph {{graph-arg}} --page TaskHome --status todo --priority high --scheduled '2026-02-10T08:00:00.000Z' --deadline '2026-02-12T18:00:00.000Z' >/dev/null"

@@ -1,8 +1,10 @@
 let is_option token = String.length token > 0 && token.[0] = '-'
+
 let option_value key options =
   Vec.find_map
     (fun (candidate, value) -> if candidate = key then value else None)
     options
+
 let option_present key options = Vec.mem_assoc key options
 
 let normalize_key = function
@@ -218,6 +220,19 @@ let allowed_options_for_path path =
   else if path2 path "remove" "page" then option_names [| "id"; "page" |]
   else if path2_any path "remove" (option_names [| "tag"; "property" |]) then
     option_names [| "id"; "name" |]
+  else if path2 path "goal" "list" then Vec.empty
+  else if path2 path "goal" "show" || path2 path "goal" "delete" then
+    option_names [| "id"; "uuid" |]
+  else if path2 path "goal" "create" then
+    option_names
+      [| "title"; "daily-check-in"; "task-days"; "reminder-minutes" |]
+  else if path2 path "goal" "update" then
+    option_names
+      [|
+        "id"; "uuid"; "title"; "daily-check-in"; "task-days"; "reminder-minutes";
+      |]
+  else if path2 path "goal" "check-in" then
+    option_names [| "id"; "uuid"; "day"; "status" |]
   else if path2 path "upsert" "block" then
     option_names
       [|
@@ -493,6 +508,12 @@ let validate_selector_integer_values path options =
     || path3 path "sync" "asset" "download"
     || path2 path "debug" "pull"
   then validate_integer_option "id" options
+  else if
+    path2_any path "goal"
+      (option_names [| "show"; "update"; "delete"; "check-in" |])
+  then
+    Error.bind (validate_integer_option "id" options) (fun () ->
+        validate_integer_option "day" options)
   else if path2_any path "upsert" (option_names [| "block"; "asset"; "task" |])
   then validate_integer_options (option_names [| "id"; "target-id" |]) options
   else Ok ()
@@ -520,6 +541,12 @@ let validate_option_values path options =
       else if path1 path "completion" then
         validate_member_option "shell"
           (Vec.of_array [| "zsh"; "bash" |])
+          options
+      else if path2 path "goal" "create" || path2 path "goal" "update" then
+        validate_integer_option "reminder-minutes" options
+      else if path2 path "goal" "check-in" then
+        validate_member_option "status"
+          (Vec.of_array [| "completed"; "missed" |])
           options
       else if path2 path "upsert" "task" then
         Error.bind (validate_pos_value options) (fun () ->
@@ -789,6 +816,71 @@ let parse ?stdin argv =
       (Example (Example.Parsed_example { selector }))
   else
     match positional_array with
+    | [| "goal"; "list" |] -> make [| "goal"; "list" |] (Goal Goal.Parsed_list)
+    | [| "goal"; "show" |] ->
+        make [| "goal"; "show" |]
+          (Goal
+             (Goal.Parsed_show
+                {
+                  id = int64_option "id" options;
+                  uuid = option_value "uuid" options;
+                }))
+    | [| "goal"; "create" |] ->
+        make [| "goal"; "create" |]
+          (Goal
+             (Goal.Parsed_create
+                {
+                  title = option_value "title" options;
+                  description = None;
+                  weekly_target = None;
+                  weekly_unit = None;
+                  daily_check_in = option_value "daily-check-in" options;
+                  task_days = option_value "task-days" options;
+                  reminder_minutes = int_option "reminder-minutes" options;
+                }))
+    | [| "goal"; "update" |] ->
+        make [| "goal"; "update" |]
+          (Goal
+             (Goal.Parsed_update
+                ( {
+                    id = int64_option "id" options;
+                    uuid = option_value "uuid" options;
+                  },
+                  {
+                    title = option_value "title" options;
+                    description = None;
+                    weekly_target = None;
+                    weekly_unit = None;
+                    daily_check_in = option_value "daily-check-in" options;
+                    task_days = option_value "task-days" options;
+                    reminder_minutes = int_option "reminder-minutes" options;
+                  } )))
+    | [| "goal"; "delete" |] ->
+        make [| "goal"; "delete" |]
+          (Goal
+             (Goal.Parsed_delete
+                {
+                  id = int64_option "id" options;
+                  uuid = option_value "uuid" options;
+                }))
+    | [| "goal"; "check-in" |] ->
+        let status =
+          match
+            Option.map String.lowercase_ascii (option_value "status" options)
+          with
+          | Some "completed" -> Some Goal.Completed
+          | Some "missed" -> Some Goal.Missed
+          | _ -> None
+        in
+        make [| "goal"; "check-in" |]
+          (Goal
+             (Goal.Parsed_check_in
+                ( {
+                    id = int64_option "id" options;
+                    uuid = option_value "uuid" options;
+                  },
+                  int_option "day" options,
+                  status )))
     | [| "graph"; "list" |] ->
         make [| "graph"; "list" |] (Graph Graph.Parsed_list)
     | [| "graph"; "create" |] ->

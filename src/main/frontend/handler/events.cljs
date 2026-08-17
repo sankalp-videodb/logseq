@@ -25,6 +25,7 @@
             [frontend.handler.events.rtc-error :as rtc-error]
             [frontend.handler.export :as export]
             [frontend.handler.graph :as graph-handler]
+            [frontend.handler.goals :as goals-handler]
             [frontend.handler.notification :as notification]
             [frontend.handler.page :as page-handler]
             [frontend.handler.plugin :as plugin-handler]
@@ -198,7 +199,8 @@
   [[_ repo]]
   ;; FIXME: an ugly implementation for redirecting to page on new window is restored
   (repo-handler/graph-ready! repo)
-  (task-reminder-handler/start! repo))
+  (task-reminder-handler/start! repo)
+  (goals-handler/start! repo))
 
 (defevent! :instrument [[_ {:keys [type payload] :as opts}]]
   (when-not (empty? (dissoc opts :type :payload))

@@ -33,6 +33,16 @@ type t =
   | Upsert_asset
   | Upsert_tag
   | Upsert_property
+  | Goal_list
+  | Goal_show
+  | Goal_create
+  | Goal_update
+  | Goal_delete
+  | Goal_progress
+  | Goal_check_in
+  | Goal_pause
+  | Goal_resume
+  | Goal_archive
   | Remove_block
   | Remove_page
   | Remove_tag
@@ -109,6 +119,16 @@ let table =
       (Upsert_asset, "upsert-asset", path [| "upsert"; "asset" |]);
       (Upsert_tag, "upsert-tag", path [| "upsert"; "tag" |]);
       (Upsert_property, "upsert-property", path [| "upsert"; "property" |]);
+      (Goal_list, "goal-list", path [| "goal"; "list" |]);
+      (Goal_show, "goal-show", path [| "goal"; "show" |]);
+      (Goal_create, "goal-create", path [| "goal"; "create" |]);
+      (Goal_update, "goal-update", path [| "goal"; "update" |]);
+      (Goal_delete, "goal-delete", path [| "goal"; "delete" |]);
+      (Goal_progress, "goal-progress", path [| "goal"; "progress" |]);
+      (Goal_check_in, "goal-check-in", path [| "goal"; "check-in" |]);
+      (Goal_pause, "goal-pause", path [| "goal"; "pause" |]);
+      (Goal_resume, "goal-resume", path [| "goal"; "resume" |]);
+      (Goal_archive, "goal-archive", path [| "goal"; "archive" |]);
       (Remove_block, "remove-block", path [| "remove"; "block" |]);
       (Remove_page, "remove-page", path [| "remove"; "page" |]);
       (Remove_tag, "remove-tag", path [| "remove"; "tag" |]);
@@ -156,10 +176,11 @@ let to_path t =
 let is_write = function
   | Graph_create | Graph_switch | Graph_remove | Graph_import | Upsert_block
   | Upsert_page | Upsert_task | Upsert_asset | Upsert_tag | Upsert_property
-  | Remove_block | Remove_page | Remove_tag | Remove_property | Sync_start
-  | Sync_stop | Sync_upload | Sync_download | Sync_asset_download
-  | Sync_ensure_keys | Sync_grant_access | Sync_config_set | Sync_config_unset
-  | Login | Logout | Skill_install ->
+  | Goal_create | Goal_update | Goal_delete | Goal_progress | Goal_check_in
+  | Goal_pause | Goal_resume | Goal_archive | Remove_block | Remove_page
+  | Remove_tag | Remove_property | Sync_start | Sync_stop | Sync_upload
+  | Sync_download | Sync_asset_download | Sync_ensure_keys | Sync_grant_access
+  | Sync_config_set | Sync_config_unset | Login | Logout | Skill_install ->
       true
   | _ -> false
 

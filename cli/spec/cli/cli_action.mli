@@ -3,6 +3,7 @@ type t =
   | Graph of Graph.action
   | List of List_command.action
   | Upsert of Upsert.action
+  | Goal of Goal.action
   | Remove of Remove.action
   | Search of Search.action
   | Query of Query.action

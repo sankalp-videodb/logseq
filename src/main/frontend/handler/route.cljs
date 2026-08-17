@@ -159,6 +159,8 @@
     (t :mobile.tab/graphs)
     :graph
     (t :nav/graph)
+    :goals
+    (t :goal/page-title)
     :all-files
     (t :nav/all-files)
     :all-pages

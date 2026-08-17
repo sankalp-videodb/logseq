@@ -1690,6 +1690,109 @@ let () =
       | Some (Output.Mode.Packed Output.Mode.Json) -> pass
       | _ -> fail_test "expected later json output mode");
 
+  test "CLI parity goal commands parse check-in lifecycle options" (fun () ->
+      let create =
+        expect_parse_ok "goal create parse"
+          [|
+            "goal";
+            "create";
+            "--graph";
+            "demo";
+            "--title";
+            "Read";
+            "--daily-check-in";
+            "Read for 20 minutes";
+            "--task-days";
+            "mon,wed,fri";
+            "--reminder-minutes";
+            "480";
+          |]
+      in
+      (match create.command with
+      | Cli_request.Goal (Goal.Parsed_create opts) ->
+          expect_equal "goal title" "Read" (expect_some "title" opts.title);
+          expect_equal "goal task" "Read for 20 minutes"
+            (expect_some "daily check-in" opts.daily_check_in);
+          expect_equal "goal task days" "mon,wed,fri"
+            (expect_some "task days" opts.task_days);
+          expect_int "goal reminder" 480
+            (expect_some "reminder" opts.reminder_minutes)
+      | _ -> fail_test "expected goal create request");
+      let update =
+        expect_parse_ok "goal update parse"
+          [|
+            "goal";
+            "update";
+            "--graph";
+            "demo";
+            "--id";
+            "42";
+            "--task-days";
+            "tue,thu";
+          |]
+      in
+      (match update.command with
+      | Cli_request.Goal
+          (Goal.Parsed_update
+             ({ id = Some id; uuid = None }, { task_days = Some days; _ })) ->
+          expect_equal "goal update id" "42" (Int64.to_string id);
+          expect_equal "goal update days" "tue,thu" days
+      | _ -> fail_test "expected goal update request");
+      let check_in =
+        expect_parse_ok "goal check-in parse"
+          [|
+            "goal";
+            "check-in";
+            "--graph";
+            "demo";
+            "--id";
+            "42";
+            "--day";
+            "20260817";
+            "--status";
+            "missed";
+          |]
+      in
+      match check_in.command with
+      | Cli_request.Goal
+          (Goal.Parsed_check_in
+             ({ id = Some id; uuid = None }, Some day, Some Goal.Missed)) ->
+          expect_equal "goal id" "42" (Int64.to_string id);
+          expect_int "goal day" 20260817 day
+      | _ -> fail_test "expected goal check-in request");
+
+  test "CLI parity goal validation protects selectors and check-ins" (fun () ->
+      expect_parse_error_code "bad goal day" ":invalid-options"
+        [| "goal"; "check-in"; "--id"; "42"; "--day"; "tomorrow" |];
+      expect_parse_error_code "bad goal status" ":invalid-options"
+        [| "goal"; "check-in"; "--id"; "42"; "--status"; "doing" |];
+      expect_error_code "missing goal selector" ":invalid-options"
+        (Goal.validate_parsed (Goal.Parsed_delete { id = None; uuid = None }));
+      expect_error_code "missing check-in task" ":invalid-options"
+        (Goal.validate_parsed
+           (Goal.Parsed_create
+              {
+                title = Some "Read";
+                description = None;
+                weekly_target = None;
+                weekly_unit = None;
+                daily_check_in = None;
+                task_days = None;
+                reminder_minutes = None;
+              }));
+      expect_error_code "bad goal task days" ":invalid-options"
+        (Goal.validate_parsed
+           (Goal.Parsed_create
+              {
+                title = Some "Read";
+                description = None;
+                weekly_target = None;
+                weekly_unit = None;
+                daily_check_in = Some "Read";
+                task_days = Some "mon,funday";
+                reminder_minutes = None;
+              })));
+
   test "CLI parity parse supports list page filters and validation" (fun () ->
       let request =
         expect_parse_ok "list page parse"
@@ -2563,7 +2666,9 @@ let () =
               (execute_with_output Remove.execute action cfg Output.Mode.Json)
           in
           expect_bool "remove page succeeds" false (Cli_result.is_error result);
-          let data = expect_some "remove page data" (Cli_result.data_value result) in
+          let data =
+            expect_some "remove page data" (Cli_result.data_value result)
+          in
           expect_bool "remove page result" true
             (expect_some "remove page result bool"
                (Edn_util.get_bool data "result"));
